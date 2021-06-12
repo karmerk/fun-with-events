@@ -4,12 +4,13 @@ using System.Collections.Generic;
 
 namespace Domain
 {
+      
     public abstract class AggregateRoot
     {
         private List<IDomainEvent> _events = new List<IDomainEvent>();
         private List<IDomainEvent> _uncommitted = new List<IDomainEvent>();
 
-        public IEnumerable<IDomainEvent> UncomittedEvents => _uncommitted;
+        internal IEnumerable<IDomainEvent> UncomittedEvents => _uncommitted;
 
         internal void ClearUncomittedEvents() => _uncommitted.Clear();
 
@@ -27,7 +28,7 @@ namespace Domain
             }
         }
 
-        public void Raise<T>(T domainEvent) where T : IDomainEvent
+        protected void Raise<T>(T domainEvent) where T : IDomainEvent
         {
             // TODO build a map from all apply methods using compiled expressions so we can execute raise faster
             // Also should prioritize match on exact type
@@ -42,6 +43,8 @@ namespace Domain
                 if(parameter.ParameterType.IsAssignableFrom(type))
                 {
                     method.Invoke(this, new object[] { domainEvent });
+                    
+                    _uncommitted.Add(domainEvent);
                     return;
                 }
             }
