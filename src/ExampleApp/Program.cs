@@ -91,12 +91,12 @@ namespace ExampleApp
 
         public int Value => _count;
 
-        public class CountIncremented : IDomainEvent
+        public class CountIncremented : DomainEvent
         {
 
         }
 
-        public class CountDecremented : IDomainEvent
+        public class CountDecremented : DomainEvent
         {
 
         }

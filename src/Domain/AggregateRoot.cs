@@ -1,34 +1,37 @@
 ﻿using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 
 namespace Domain
 {
       
     public abstract class AggregateRoot
     {
-        private List<IDomainEvent> _events = new List<IDomainEvent>();
-        private List<IDomainEvent> _uncommitted = new List<IDomainEvent>();
+        private List<DomainEvent> _events = new List<DomainEvent>();
+        private List<DomainEvent> _uncommitted = new List<DomainEvent>();
 
-        internal IEnumerable<IDomainEvent> UncomittedEvents => _uncommitted;
+        internal IEnumerable<DomainEvent> UncomittedEvents => _uncommitted.ToImmutableArray();
 
         internal void ClearUncomittedEvents() => _uncommitted.Clear();
-
+        
         public AggregateRoot()
         {
 
         }
 
-        public void Load(IEnumerable<IDomainEvent> domainEvents)
+        public void Load(IEnumerable<DomainEvent> domainEvents)
         {
-            foreach(var domainEvent in domainEvents)
+            // TODO - load needs to verify the integrity (specifically the order) of the events
+
+            foreach (var domainEvent in domainEvents)
             {
-                Raise(domainEvent);
+                Raise(domainEvent, false);
                 ClearUncomittedEvents();
             }
         }
 
-        protected void Raise<T>(T domainEvent) where T : IDomainEvent
+        private void Raise<T>(T domainEvent, bool uncomitted) where T : DomainEvent
         {
             // TODO build a map from all apply methods using compiled expressions so we can execute raise faster
             // Also should prioritize match on exact type
@@ -40,16 +43,32 @@ namespace Domain
                 var parameters = method.GetParameters();
                 var parameter = parameters[0];
 
-                if(parameter.ParameterType.IsAssignableFrom(type))
+                if (parameter.ParameterType.IsAssignableFrom(type))
                 {
+                    if (uncomitted)
+                    {
+                        domainEvent.Id = (_events.LastOrDefault()?.Id ?? -1)+1;
+                    }
+
                     method.Invoke(this, new object[] { domainEvent });
-                    
-                    _uncommitted.Add(domainEvent);
+
+                    if (uncomitted)
+                    {
+                        _uncommitted.Add(domainEvent);
+                    }
+                    _events.Add(domainEvent);
                     return;
                 }
             }
 
             // throw new no-matching-apply-method-found-exception
+        }
+
+        protected void Raise<T>(T domainEvent) where T : DomainEvent
+        {
+            
+
+            Raise(domainEvent, true);
         }
     }
 

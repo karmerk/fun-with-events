@@ -15,13 +15,13 @@ namespace Domain.Repository.Memory
                 Id = id;
             }
 
-            public List<IDomainEvent> Events { get; } = new List<IDomainEvent>();
+            public List<DomainEvent> Events { get; } = new List<DomainEvent>();
         }
 
         private List<EventData> _datas = new List<EventData>();
 
 
-        public Task SaveAsync(string id, IEnumerable<IDomainEvent> domainEvents)
+        public Task SaveAsync(string id, IEnumerable<DomainEvent> domainEvents)
         {
             var data = _datas.FirstOrDefault(x => x.Id == id);
 
@@ -37,7 +37,7 @@ namespace Domain.Repository.Memory
         }
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        public async IAsyncEnumerable<IDomainEvent> LoadAsyncEnumerable(string id)
+        public async IAsyncEnumerable<DomainEvent> LoadAsyncEnumerable(string id)
 #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
         {
             var data = _datas.FirstOrDefault(x => x.Id == id);
@@ -52,7 +52,7 @@ namespace Domain.Repository.Memory
         }
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        public async Task<IEnumerable<IDomainEvent>> LoadAsync(string id)
+        public async Task<IEnumerable<DomainEvent>> LoadAsync(string id)
 #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
         {
             var data = _datas.FirstOrDefault(x => x.Id == id);
@@ -63,7 +63,7 @@ namespace Domain.Repository.Memory
 
             }
 
-            return Enumerable.Empty<IDomainEvent>();
+            return Enumerable.Empty<DomainEvent>();
         }
     }
 

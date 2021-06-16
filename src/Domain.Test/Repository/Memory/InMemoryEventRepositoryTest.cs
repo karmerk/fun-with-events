@@ -9,11 +9,11 @@ namespace Domain.Test.Repository.Memory
     [TestClass]
     public class InMemoryEventRepositoryTest
     {
-        public class A : IDomainEvent { }
+        public class A : DomainEvent { }
 
-        public class B : IDomainEvent { }
+        public class B : DomainEvent { }
         
-        public class C : IDomainEvent { }
+        public class C : DomainEvent { }
         
 
         [TestMethod]
@@ -21,7 +21,7 @@ namespace Domain.Test.Repository.Memory
         {
             var id = $"{nameof(InMemoryEventRepositoryTest)}+{Guid.NewGuid()}";
             var repository = new InMemoryEventRepository();
-            var saveEvents = new IDomainEvent[]
+            var saveEvents = new DomainEvent[]
             {
                 new A(),
                 new B(),
