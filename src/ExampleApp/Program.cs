@@ -1,6 +1,6 @@
 ﻿using Domain;
-using Domain.Repository;
-using Domain.Repository.Memory;
+using Domain.Infrastructure;
+using Domain.Infrastructure.Memory;
 using System;
 using System.Threading.Tasks;
 
@@ -17,7 +17,7 @@ namespace ExampleApp
 
         static async Task Main(string[] args)
         {
-            IAggregateRepository repository = new AggregateRepository(new InMemoryEventRepository());
+            IAggregateRepository repository = new AggregateRepository(new MemoryObjectEventStore());
 
             var name = "initial";
             var counter = await repository.GetAsync<Counter>(name);
@@ -48,7 +48,7 @@ namespace ExampleApp
                             Console.WriteLine($"Opened counter: Name={name}, Count={counter.Value}");
                             break;
                         case ConsoleKey.S:
-                            await repository.SaveAsync(counter, name);
+                            await repository.SaveAsync(name, counter);
                             Console.WriteLine($"Saved counter: Name={name}, Count={counter.Value}");
                             break;
                         case ConsoleKey.OemPlus:

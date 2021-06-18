@@ -5,11 +5,10 @@ using System.Collections.Immutable;
 
 namespace Domain
 {
-      
     public abstract class AggregateRoot
     {
-        private List<DomainEvent> _events = new List<DomainEvent>();
-        private List<DomainEvent> _uncommitted = new List<DomainEvent>();
+        private readonly List<DomainEvent> _events = new List<DomainEvent>();
+        private readonly List<DomainEvent> _uncommitted = new List<DomainEvent>();
 
         internal IEnumerable<DomainEvent> UncomittedEvents => _uncommitted.ToImmutableArray();
 
@@ -31,7 +30,7 @@ namespace Domain
             }
         }
 
-        private void Raise<T>(T domainEvent, bool uncomitted) where T : DomainEvent
+        private void Raise<T>(T domainEvent, bool @new) where T : DomainEvent
         {
             // TODO build a map from all apply methods using compiled expressions so we can execute raise faster
             // Also should prioritize match on exact type
@@ -45,14 +44,14 @@ namespace Domain
 
                 if (parameter.ParameterType.IsAssignableFrom(type))
                 {
-                    if (uncomitted)
+                    if (@new)
                     {
                         domainEvent.Id = (_events.LastOrDefault()?.Id ?? -1)+1;
                     }
 
                     method.Invoke(this, new object[] { domainEvent });
 
-                    if (uncomitted)
+                    if (@new)
                     {
                         _uncommitted.Add(domainEvent);
                     }
@@ -66,8 +65,6 @@ namespace Domain
 
         protected void Raise<T>(T domainEvent) where T : DomainEvent
         {
-            
-
             Raise(domainEvent, true);
         }
     }
