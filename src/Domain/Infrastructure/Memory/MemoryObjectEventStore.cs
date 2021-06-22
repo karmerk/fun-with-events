@@ -70,7 +70,7 @@ namespace Domain.Infrastructure.Memory
             return Enumerable.Empty<DomainEvent>();
         }
 
-        public async Task<IEnumerable<DomainEvent>> GetBackwards(string name, int? count)
+        public async Task<IEnumerable<DomainEvent>> GetBackwardsAsync(string name, int? count)
         {
             using (await LockAsync())
             {

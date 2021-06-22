@@ -9,7 +9,7 @@ namespace Domain.Infrastructure
 
         public Task<IEnumerable<DomainEvent>> GetAsync(string name, int? begin = null, int? count = null);
 
-        public Task<IEnumerable<DomainEvent>> GetBackwards(string name, int? count = null);
+        public Task<IEnumerable<DomainEvent>> GetBackwardsAsync(string name, int? count = null);
 
 
         // TODO Async enumerable types
