@@ -17,7 +17,7 @@ namespace ExampleApp
 
         static async Task Main(string[] args)
         {
-            IAggregateRepository repository = new AggregateRepository(new ObjectEventStore());
+            IAggregateRepository repository = new AggregateRepository(new MemoryBasedEventStore());
 
             var name = "initial";
             var counter = await repository.GetAsync<Counter>(name);

@@ -4,16 +4,16 @@ namespace Domain.Infrastructure.Serialization
 {
     public interface ISerializer
     {
-        public byte[] Serialize(object obj);
+        public string Serialize(object obj);
 
-        public object Deserialize(Type type, byte[] bytes);
+        public object Deserialize(Type type, string text);
     }
 
     public static class SerializerExtensions
     {
-        public static T Deserialize<T>(this ISerializer serializer, byte[] bytes)
+        public static T Deserialize<T>(this ISerializer serializer, string text)
         {
-            return (T)serializer.Deserialize(typeof(T), bytes);
+            return (T)serializer.Deserialize(typeof(T), text);
         }
     }
 }

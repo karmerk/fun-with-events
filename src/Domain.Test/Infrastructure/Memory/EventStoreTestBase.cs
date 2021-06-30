@@ -9,123 +9,97 @@ namespace Domain.Test.Infrastructure.Memory
 {
     public abstract class EventStoreTestBase
     {
-        private class A : DomainEvent { }
-        private class B : DomainEvent { }
-        private class C : DomainEvent { }
-
         public abstract IEventStore EventStore { get; }
 
-        public IEnumerable<DomainEvent> GenerateTestEvents(int firstId = 0)
+        public IEnumerable<Event> GenerateTestEvents(int position = 0)
         {
-            var id = firstId;
+            int i = 0;
             while (true)
             {
-                yield return new A(){ Id = id++};
-                yield return new A(){ Id = id++};
-                yield return new B(){ Id = id++};
-                yield return new B(){ Id = id++};
-                yield return new C(){ Id = id++};
-                yield return new C(){ Id = id++};
+                yield return new Event(position++, $"Type_{Guid.NewGuid()}", $"Data_{Guid.NewGuid()}");
+
+                if(i++ > 50000)
+                {
+                    Assert.Fail("Think you went a little to far.. use .Take(x) to limit the number of test events generated");
+                }
             }
         }
 
         [TestMethod]
         public async Task AppendAsync()
         {
-            var name = nameof(AppendAsync);
+            var streamName = nameof(AppendAsync);
 
-            var events = new DomainEvent[]
-            {
-                new A(){ Id = 0},
-                new A(){ Id = 1},
-                new B(){ Id = 2},
-                new C(){ Id = 3},
-            };
+            var events = GenerateTestEvents(0).Take(4);
 
-            await EventStore.AppendAsync(name, events);
+
+            await EventStore.AppendAsync(streamName, events);
         }
 
         [TestMethod,ExpectedException(typeof(Exception), AllowDerivedTypes = true)]
         public async Task AppendAsync_DuplicatedIdsCausesException()
         {
-            var name = nameof(AppendAsync_DuplicatedIdsCausesException);
+            var streamName = nameof(AppendAsync_DuplicatedIdsCausesException);
 
-            var events = new DomainEvent[]
-            {
-                new A(){ Id = 0},
-                new A(){ Id = 1},
-                new B(){ Id = 1},
-                new C(){ Id = 2},
-            };
+            var events = GenerateTestEvents(0).Take(4).ToList();
+
+            // TODO should be a copy not the same object
+            events.Add(events.Last());
 
             // TODO check on specific exception type ? can we expect to know the type of exception?
             //_ = await Assert.ThrowsExceptionAsync<??>(() => EventStore.AppendAsync(name, events));
 
-            await EventStore.AppendAsync(name, events);
+            // TODO we need to ensure that the event position 0 is not acutally added
+
+            await EventStore.AppendAsync(streamName, events);
         }
 
         [TestMethod, ExpectedException(typeof(Exception), AllowDerivedTypes = true)]
         public async Task AppendAsync_AlreadyExistingIdCausesException()
         {
-            var name = nameof(AppendAsync_AlreadyExistingIdCausesException);
+            var streamName = nameof(AppendAsync_AlreadyExistingIdCausesException);
 
-            var events = new DomainEvent[]
-            {
-                new A(){ Id = 0},
-                new A(){ Id = 1},
-                new B(){ Id = 2},
-                new C(){ Id = 3},
-            };
+            var events = GenerateTestEvents().Take(4).ToArray();
+            
+            await EventStore.AppendAsync(streamName, events);
 
-            await EventStore.AppendAsync(name, events);
-
-            events = new DomainEvent[]
-            {
-                new C() { Id = 3},
-                new A() { Id = 4}
-            };
+            events = GenerateTestEvents(events.Last().Position).Take(2).ToArray();
 
             // TODO check on specific exception type ?
             //_ = await Assert.ThrowsExceptionAsync<??>(() => EventStore.AppendAsync(name, events));
-            await EventStore.AppendAsync(name, events);
+            await EventStore.AppendAsync(streamName, events);
 
         }
 
         [TestMethod]
         public async Task GetAsync()
         {
-            var name = nameof(GetAsync);
+            var streamName = nameof(GetAsync);
 
-            var events = new DomainEvent[]
-            {
-                new A(){ Id = 0},
-                new A(){ Id = 1},
-                new B(){ Id = 2},
-                new C(){ Id = 3},
-            };
+            var events = GenerateTestEvents().Take(4).ToArray();
+          
+            await EventStore.AppendAsync(streamName, events);
 
-            await EventStore.AppendAsync(name, events);
-
-            var get = await EventStore.GetAsync(name);
+            var get = await EventStore.GetAsync(streamName);
             var result = get?.ToList();
             
             Assert.IsNotNull(result);
             Assert.AreEqual(4, result.Count);
                         
-            Assert.AreEqual(0, result[0].Id);
-            Assert.AreEqual(1, result[1].Id);
-            Assert.AreEqual(2, result[2].Id);
-            Assert.AreEqual(3, result[3].Id);
+            Assert.AreEqual(0, result[0].Position);
+            Assert.AreEqual(1, result[1].Position);
+            Assert.AreEqual(2, result[2].Position);
+            Assert.AreEqual(3, result[3].Position);
 
-            Assert.IsTrue(result[0] is A);
-            Assert.IsTrue(result[1] is A);
-            Assert.IsTrue(result[2] is B);
-            Assert.IsTrue(result[3] is C);
+            Assert.AreEqual(events[0].Type, result[0].Type);
+            Assert.AreEqual(events[1].Type, result[1].Type);
+            Assert.AreEqual(events[2].Type, result[2].Type);
+            Assert.AreEqual(events[3].Type, result[3].Type);
         }
 
 
         [TestMethod]
-        public async Task CanHoldMultipleEventSets()
+        public async Task CanHoldMultipleEventStreams()
         {
             await EventStore.AppendAsync("one", GenerateTestEvents().Take(10));
             await EventStore.AppendAsync("two", GenerateTestEvents().Take(15));
@@ -148,14 +122,14 @@ namespace Domain.Test.Infrastructure.Memory
         [DataRow(5, 10, 5, DisplayName ="All 5 events are returned when count is 10")]
         public async Task GetAsync_WithCount(int numberOfEvetns, int countToRead, int expectedEventsRead)
         {
-            var name = nameof(GetAsync_WithCount);
+            var streamName = nameof(GetAsync_WithCount);
 
-            await EventStore.AppendAsync(name, GenerateTestEvents().Take(numberOfEvetns));
+            await EventStore.AppendAsync(streamName, GenerateTestEvents().Take(numberOfEvetns));
 
-            var result = (await EventStore.GetAsync(name, count: countToRead)).ToList();
+            var result = (await EventStore.GetAsync(streamName, count: countToRead)).ToList();
 
             Assert.AreEqual(expectedEventsRead, result.Count);
-            Assert.AreEqual(0, result[0].Id);
+            Assert.AreEqual(0, result[0].Position);
         }
 
         [TestMethod]
@@ -163,11 +137,11 @@ namespace Domain.Test.Infrastructure.Memory
         [DataRow(5, 10, 0, DisplayName = "All events are skipped")]
         public async Task GetAsync_WithBegin(int numberOfEvetns, int begin, int expectedEventsRead)
         {
-            var name = nameof(GetAsync_WithBegin);
+            var streamName = nameof(GetAsync_WithBegin);
 
-            await EventStore.AppendAsync(name, GenerateTestEvents().Take(numberOfEvetns));
+            await EventStore.AppendAsync(streamName, GenerateTestEvents().Take(numberOfEvetns));
 
-            var result = (await EventStore.GetAsync(name, begin: begin)).ToList();
+            var result = (await EventStore.GetAsync(streamName, begin: begin)).ToList();
 
             Assert.AreEqual(expectedEventsRead, result.Count);
         }
@@ -177,11 +151,11 @@ namespace Domain.Test.Infrastructure.Memory
         [DataRow(10, 5, 10, 5, DisplayName = "Skip 5 out of 10 events should return 2 events when count is 2")]
         public async Task GetAsync_WithBeginAndCount(int numberOfEvetns, int begin, int count, int expectedNumberOfEventsRead)
         {
-            var name = nameof(GetAsync_WithBeginAndCount);
+            var streamName = nameof(GetAsync_WithBeginAndCount);
 
-            await EventStore.AppendAsync(name, GenerateTestEvents().Take(numberOfEvetns));
+            await EventStore.AppendAsync(streamName, GenerateTestEvents().Take(numberOfEvetns));
 
-            var result = (await EventStore.GetAsync(name, begin: begin)).ToList();
+            var result = (await EventStore.GetAsync(streamName, begin: begin)).ToList();
 
             Assert.AreEqual(expectedNumberOfEventsRead, result.Count);
         }
@@ -190,33 +164,32 @@ namespace Domain.Test.Infrastructure.Memory
         [TestMethod]
         public async Task GetGetBackwardsAsync()
         {
-            var name = nameof(GetGetBackwardsAsync);
+            var streamName = nameof(GetGetBackwardsAsync);
 
-            var events = new DomainEvent[]
-            {
-                new A(){ Id = 0},
-                new A(){ Id = 1},
-                new B(){ Id = 2},
-                new C(){ Id = 3},
-            };
+            var events = GenerateTestEvents().Take(4).ToArray();
 
-            await EventStore.AppendAsync(name, events);
+            await EventStore.AppendAsync(streamName, events);
 
-            var get = await EventStore.GetBackwardsAsync(name);
+            var get = await EventStore.GetBackwardsAsync(streamName);
             var result = get?.ToList();
 
             Assert.IsNotNull(result);
             Assert.AreEqual(4, result.Count);
 
-            Assert.AreEqual(0, result[3].Id);
-            Assert.AreEqual(1, result[2].Id);
-            Assert.AreEqual(2, result[1].Id);
-            Assert.AreEqual(3, result[0].Id);
+            Assert.AreEqual(events[0].Position, result[3].Position);
+            Assert.AreEqual(events[1].Position, result[2].Position);
+            Assert.AreEqual(events[2].Position, result[1].Position);
+            Assert.AreEqual(events[3].Position, result[0].Position);
 
-            Assert.IsTrue(result[3] is A);
-            Assert.IsTrue(result[2] is A);
-            Assert.IsTrue(result[1] is B);
-            Assert.IsTrue(result[0] is C);
+            Assert.AreEqual(events[0].Type, result[3].Type);
+            Assert.AreEqual(events[1].Type, result[2].Type);
+            Assert.AreEqual(events[2].Type, result[1].Type);
+            Assert.AreEqual(events[3].Type, result[0].Type);
+
+            Assert.AreEqual(events[0].Data, result[3].Data);
+            Assert.AreEqual(events[1].Data, result[2].Data);
+            Assert.AreEqual(events[2].Data, result[1].Data);
+            Assert.AreEqual(events[3].Data, result[0].Data);
         }
     }
 }

@@ -5,8 +5,8 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Domain.Test.Infrastructure.Memory
 {
     [TestClass]
-    public class SerializedObjectEventStoreTest : EventStoreTestBase
+    public class MemoryBasedEventStoreTest : EventStoreTestBase
     {
-        public override IEventStore EventStore { get; } = new SerializedObjectEventStore();
+        public override IEventStore EventStore { get; } = new MemoryBasedEventStore();
     }
 }
