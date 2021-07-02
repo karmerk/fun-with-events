@@ -63,7 +63,7 @@ namespace Domain.Test.Infrastructure.Memory
             
             await EventStore.AppendAsync(streamName, events);
 
-            events = GenerateTestEvents(events.Last().Position).Take(2).ToArray();
+            events = GenerateTestEvents(events.Last().Id).Take(2).ToArray();
 
             // TODO check on specific exception type ?
             //_ = await Assert.ThrowsExceptionAsync<??>(() => EventStore.AppendAsync(name, events));
@@ -86,10 +86,10 @@ namespace Domain.Test.Infrastructure.Memory
             Assert.IsNotNull(result);
             Assert.AreEqual(4, result.Count);
                         
-            Assert.AreEqual(0, result[0].Position);
-            Assert.AreEqual(1, result[1].Position);
-            Assert.AreEqual(2, result[2].Position);
-            Assert.AreEqual(3, result[3].Position);
+            Assert.AreEqual(0, result[0].Id);
+            Assert.AreEqual(1, result[1].Id);
+            Assert.AreEqual(2, result[2].Id);
+            Assert.AreEqual(3, result[3].Id);
 
             Assert.AreEqual(events[0].Type, result[0].Type);
             Assert.AreEqual(events[1].Type, result[1].Type);
@@ -129,7 +129,7 @@ namespace Domain.Test.Infrastructure.Memory
             var result = (await EventStore.GetAsync(streamName, count: countToRead)).ToList();
 
             Assert.AreEqual(expectedEventsRead, result.Count);
-            Assert.AreEqual(0, result[0].Position);
+            Assert.AreEqual(0, result[0].Id);
         }
 
         [TestMethod]
@@ -176,10 +176,10 @@ namespace Domain.Test.Infrastructure.Memory
             Assert.IsNotNull(result);
             Assert.AreEqual(4, result.Count);
 
-            Assert.AreEqual(events[0].Position, result[3].Position);
-            Assert.AreEqual(events[1].Position, result[2].Position);
-            Assert.AreEqual(events[2].Position, result[1].Position);
-            Assert.AreEqual(events[3].Position, result[0].Position);
+            Assert.AreEqual(events[0].Id, result[3].Id);
+            Assert.AreEqual(events[1].Id, result[2].Id);
+            Assert.AreEqual(events[2].Id, result[1].Id);
+            Assert.AreEqual(events[3].Id, result[0].Id);
 
             Assert.AreEqual(events[0].Type, result[3].Type);
             Assert.AreEqual(events[1].Type, result[2].Type);

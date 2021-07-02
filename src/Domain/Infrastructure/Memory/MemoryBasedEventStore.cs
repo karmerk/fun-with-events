@@ -1,5 +1,4 @@
-﻿using Domain.Infrastructure.Memory;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,22 +15,22 @@ namespace Domain.Infrastructure.Memory
             var stream = _streams.GetOrAdd(streamName, () => new Dictionary<int, Event>());
             var list = events.ToList();
 
-            if( list.Select(x=>x.Position).Distinct().Count() != list.Count)
+            if( list.Select(x=>x.Id).Distinct().Count() != list.Count)
             {
                 throw new InvalidOperationException($"Concurrency problem detected. One or more positions are used multiple times");
             }
 
             foreach (var item in list)
             {
-                if (stream.ContainsKey(item.Position))
+                if (stream.ContainsKey(item.Id))
                 {
-                    throw new InvalidOperationException($"Concurrency problem detected. Position already exists: StreamName={streamName}, Position={item.Position}");
+                    throw new InvalidOperationException($"Concurrency problem detected. Position already exists: StreamName={streamName}, {nameof(item.Id)}={item.Id}");
                 }
             }
 
             foreach(var item in list)
             {
-                stream.Add(item.Position, item);
+                stream.Add(item.Id, item);
             }
         }
 
@@ -42,10 +41,10 @@ namespace Domain.Infrastructure.Memory
 
             if (begin != null)
             {
-                queryable = queryable.Where(x => x.Position >= begin);
+                queryable = queryable.Where(x => x.Id >= begin);
             }
 
-            queryable = queryable.OrderBy(x => x.Position);
+            queryable = queryable.OrderBy(x => x.Id);
             queryable = queryable.Take(count);
 
             return queryable.ToList();
@@ -56,7 +55,7 @@ namespace Domain.Infrastructure.Memory
             var stream = _streams.GetValueOrDefault(streamName) ?? new Dictionary<int, Event>();
             var queryable = stream.Values.AsQueryable();
 
-            queryable = queryable.OrderByDescending(x => x.Position);
+            queryable = queryable.OrderByDescending(x => x.Id);
             queryable = queryable.Take(count);
 
             return queryable.ToList();

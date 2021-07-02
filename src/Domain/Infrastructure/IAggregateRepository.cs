@@ -44,7 +44,9 @@ namespace Domain.Infrastructure
 
                 aggregate.Load(events.Select(Deserialize));
 
-                position = events.LastOrDefault()?.Position ?? -1;
+                position = (events.LastOrDefault()?.Id ?? -1) + 1;
+
+
 
             } while (events.Count == count);
 
@@ -74,8 +76,11 @@ namespace Domain.Infrastructure
         {
             // TODO need to be possible to replace Type resolving
             var type = Type.GetType(@event.Type) ?? throw new InvalidOperationException($"Unknown type: {@event.Type}");
+            var domainEvent = _serializer.Deserialize(type, @event.Data) as DomainEvent ?? throw new InvalidOperationException("Deserialized object was not a DomainEvent");
 
-            return _serializer.Deserialize(type, @event.Data) as DomainEvent ?? throw new InvalidOperationException("Deserialized object was not a DomainEvent");
+            domainEvent.Id = @event.Id;
+
+            return domainEvent;
         }
     }
 

@@ -5,14 +5,15 @@ namespace Domain.Infrastructure
 {
     public sealed record Event
     {
-        public Event(int position, string type, string data)
+        public Event(int id, string type, string data)
         {
-            Position = position;
+            // Id or position
+            Id = id;
             Type = type;
             Data = data;
         }
 
-        public int Position { get; }
+        public int Id { get; }
         public string Type { get; }
         public string Data { get; }
     }
