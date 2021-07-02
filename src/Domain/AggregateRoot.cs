@@ -19,14 +19,31 @@ namespace Domain
 
         }
 
+        private int GetNextDomainEventId() => (_events.LastOrDefault()?.Id ?? -1) + 1;
+
+
         public void Load(IEnumerable<DomainEvent> domainEvents)
         {
-            // TODO - load needs to verify the integrity (specifically the order) of the events
+            if(_uncommitted.Count > 0)
+            {
+                throw new InvalidOperationException($"{nameof(Load)} can not be called with when the aggregated has uncomitted events");
+            }
+
+            var expected = GetNextDomainEventId();
 
             foreach (var domainEvent in domainEvents)
             {
+                if(domainEvent.Id != expected)
+                {
+                    throw new InvalidOperationException($"{nameof(DomainEvent)}s must be loaded ordered by {nameof(domainEvent.Id)}");
+                }
+
+                expected++;
+            }
+                        
+            foreach (var domainEvent in domainEvents)
+            {
                 Raise(domainEvent, false);
-                ClearUncomittedEvents();
             }
         }
 
@@ -46,7 +63,7 @@ namespace Domain
                 {
                     if (@new)
                     {
-                        domainEvent.Id = (_events.LastOrDefault()?.Id ?? -1)+1;
+                        domainEvent.Id = GetNextDomainEventId();
                     }
 
                     method.Invoke(this, new object[] { domainEvent });
