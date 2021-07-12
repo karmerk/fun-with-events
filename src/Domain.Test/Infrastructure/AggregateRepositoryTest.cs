@@ -30,6 +30,7 @@ namespace Domain.Test.Infrastructure
             }
 
             public List<(string streamName, int? begin, int count)> CallsToGetAsync { get; } = new List<(string streamName, int? begin, int count)>();
+            public List<(string streamName, int count)> CallsToGetBackwardsAsync { get; } = new List<(string streamName, int count)>();
 
             public Task<IEnumerable<Event>> GetAsync(string streamName, int? begin = null, int count = 50)
             {
@@ -49,7 +50,17 @@ namespace Domain.Test.Infrastructure
 
             public Task<IEnumerable<Event>> GetBackwardsAsync(string streamName, int count = 50)
             {
-                throw new NotImplementedException();
+                CallsToGetBackwardsAsync.Add((streamName,  count));
+
+                if (Events.TryGetValue(streamName, out var list))
+                {
+                    list = list.OrderByDescending(x => x.Id)
+                        .Take(count).ToList();
+
+                    return Task.FromResult(list.AsEnumerable());
+                }
+
+                return Task.FromResult(Enumerable.Empty<Event>());
             }
         }
 
@@ -138,6 +149,87 @@ namespace Domain.Test.Infrastructure
             Assert.AreEqual(0, aggregate.RaisedEvents.First().Id);
             Assert.AreEqual(129, aggregate.RaisedEvents.Last().Id);
         }
+
+
+        [TestMethod]
+        public async Task SaveAsync_AggregateWithState()
+        {
+            var streamName = Guid.NewGuid().ToString();
+
+            var repository = new AggregateRepository(_eventStoreMock);
+
+            var aggregate = new CountingTestAggregateWithState();
+
+            aggregate.Increment();
+            aggregate.Increment();
+
+            await repository.SaveAsync(streamName, aggregate);
+
+            Assert.AreEqual(_eventStoreMock.Events[streamName].Count, 2);
+            Assert.AreEqual(_eventStoreMock.Events[$"{streamName}_Snapshot"].Count, 1);
+        }
+
+
+        [TestMethod]
+        public async Task GetAsync_AggregateWithState()
+        {
+            var streamName = Guid.NewGuid().ToString();
+
+            var repository = new AggregateRepository(_eventStoreMock);
+            var aggregate = new CountingTestAggregateWithState();
+
+            // Prepare
+            aggregate.Increment();
+            aggregate.Increment();
+            aggregate.Decrement();
+            aggregate.Increment();
+            Assert.AreEqual(2, aggregate.GetState().Value);
+
+            await repository.SaveAsync(streamName, aggregate);
+
+            Assert.AreEqual(_eventStoreMock.Events[streamName].Count, 4);
+            Assert.AreEqual(_eventStoreMock.Events[$"{streamName}_Snapshot"].Count, 1);
+
+            aggregate = await repository.GetAsync<CountingTestAggregateWithState>(streamName);
+
+            Assert.AreEqual(2, aggregate.GetState().Value);
+            Assert.AreEqual(0, aggregate.Events.Count());
+        }
+
+        [TestMethod]
+        public async Task GetAsync_AndAppendAdditionalEvents()
+        {
+            var streamName = Guid.NewGuid().ToString();
+
+            var repository = new AggregateRepository(_eventStoreMock);
+            var aggregate = new CountingTestAggregateWithState();
+
+            // Prepare
+            aggregate.Increment();
+            aggregate.Increment();
+            aggregate.Decrement();
+            aggregate.Increment();
+
+            Assert.AreEqual(2, aggregate.GetState().Value);
+
+            await repository.SaveAsync(streamName, aggregate);
+
+            Assert.AreEqual(_eventStoreMock.Events[streamName].Count, 4);
+            Assert.AreEqual(_eventStoreMock.Events[$"{streamName}_Snapshot"].Count, 1);
+
+            aggregate = await repository.GetAsync<CountingTestAggregateWithState>(streamName);
+
+            Assert.AreEqual(2, aggregate.GetState().Value);
+
+            aggregate.Increment();
+            aggregate.Increment();
+
+            await repository.SaveAsync(streamName, aggregate);
+
+            Assert.AreEqual(_eventStoreMock.Events[streamName].Count, 6);
+            Assert.AreEqual(_eventStoreMock.Events[$"{streamName}_Snapshot"].Count, 2); // For now the snapshots corresponds to every time save is called
+        }
+
 
     }
 }

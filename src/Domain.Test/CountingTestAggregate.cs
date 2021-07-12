@@ -29,4 +29,33 @@ namespace Domain.Test
         public void Decrement() => Raise(new DecrementEvent());
 
     }
+
+    public sealed class CountingTestAggregateWithState : AggregateRoot<CountingTestAggregateWithState.CountingState>
+    {
+        public class CountingState
+        {
+            public int Value { get; set; }
+        }
+
+        public CountingState GetState() => State;
+
+
+        public sealed class IncrementEvent : DomainEvent { }
+
+        public sealed class DecrementEvent : DomainEvent { }
+
+        private void Apply(IncrementEvent _)
+        {
+            State.Value++;
+        }
+
+        private void Apply(DecrementEvent _)
+        {
+            State.Value--;
+        }
+
+        public void Increment() => Raise(new IncrementEvent());
+        public void Decrement() => Raise(new DecrementEvent());
+
+    }
 }

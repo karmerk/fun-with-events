@@ -10,6 +10,7 @@ namespace Domain
         private readonly List<DomainEvent> _events = new List<DomainEvent>();
         private readonly List<DomainEvent> _uncommitted = new List<DomainEvent>();
 
+        internal IEnumerable<DomainEvent> Events => _events.ToImmutableArray();
         internal IEnumerable<DomainEvent> UncomittedEvents => _uncommitted.ToImmutableArray();
 
         internal void ClearUncomittedEvents() => _uncommitted.Clear();
@@ -19,7 +20,7 @@ namespace Domain
 
         }
 
-        private int GetNextDomainEventId() => (_events.LastOrDefault()?.Id ?? -1) + 1;
+        protected virtual int GetNextDomainEventId() => (_events.LastOrDefault()?.Id ?? -1) + 1;
 
 
         public void Load(IEnumerable<DomainEvent> domainEvents)

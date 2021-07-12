@@ -34,8 +34,19 @@ namespace Domain.Infrastructure
 
             var aggregate = new T();
 
-            List<Event> events = null!;
+            if(aggregate is ISupportSnapshot supportSnapshot)
+            {
+                var snapshot = (await _eventStore.GetBackwardsAsync($"{name}_Snapshot", 1)).Select(DeserializeSnapshot).FirstOrDefault();
+                if (snapshot != null)
+                {
+                    supportSnapshot.RestoreSnapshot(snapshot);
 
+                    position = snapshot.LastEventId + 1;
+                }
+            }
+
+            List<Event> events = null!;
+            
             do
             {
                 var get = await _eventStore.GetAsync(name, position, count);
@@ -53,15 +64,45 @@ namespace Domain.Infrastructure
             return aggregate;
         }
 
+        
+
         public async Task SaveAsync<T>(string name, T aggregate) where T : AggregateRoot
         {
-            var events = aggregate.UncomittedEvents.Select(Serialize).ToList();
+            var uncomittedEvents = aggregate.UncomittedEvents.Select(Serialize).ToList();
+            if (uncomittedEvents.Any())
+            {
+                if (aggregate is ISupportSnapshot supportSnapshot)
+                {
+                    // only snapshot every x event
+                    var snapshot = supportSnapshot.GetSnapshot();
+                    var snapshotEvent = SerializeSnapshot(snapshot);
 
-            await _eventStore.AppendAsync(name, events);
+                    await _eventStore.AppendAsync($"{name}_Snapshot", new[] { snapshotEvent });
+                }
+                
+                await _eventStore.AppendAsync(name, uncomittedEvents);
 
-            aggregate.ClearUncomittedEvents();
+                aggregate.ClearUncomittedEvents();
+            }
         }
 
+
+        private Event SerializeSnapshot(ISnapshot snapshot)
+        {
+            var typeName = snapshot.GetType().AssemblyQualifiedName ?? throw new ApplicationException("Type does not have a AssemblyQualifiedName ??");
+            var bytes = _serializer.Serialize(snapshot);
+
+            return new Event(snapshot.LastEventId, typeName, bytes);
+        }
+
+        private ISnapshot DeserializeSnapshot(Event @event)
+        {
+            // TODO need to be possible to replace Type resolving
+            var type = Type.GetType(@event.Type) ?? throw new InvalidOperationException($"Unknown type: {@event.Type}");
+            var snapshot = _serializer.Deserialize(type, @event.Data) as ISnapshot ?? throw new InvalidOperationException("Deserialized object was not a Snapshot");
+
+            return snapshot;
+        }
 
         private Event Serialize(DomainEvent domainEvent)
         {
@@ -84,4 +125,10 @@ namespace Domain.Infrastructure
         }
     }
 
+    internal sealed class SnapshotEvent : DomainEvent
+    {
+        public int LastEventId { get; set; } = -1;
+
+        public string State { get; set; } = null!;
+    }
 }
